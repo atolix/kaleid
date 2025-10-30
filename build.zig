@@ -83,6 +83,41 @@ pub fn build(b: *std.Build) void {
         }),
     });
 
+    const prism_path = "prism";
+
+    exe.addIncludePath(b.path("prism/include"));
+    const prism_sources = &[_][]const u8{
+        prism_path ++ "/src/diagnostic.c",
+        prism_path ++ "/src/encoding.c",
+        prism_path ++ "/src/node.c",
+        prism_path ++ "/src/options.c",
+        prism_path ++ "/src/pack.c",
+        prism_path ++ "/src/prettyprint.c",
+        prism_path ++ "/src/prism.c",
+        prism_path ++ "/src/regexp.c",
+        prism_path ++ "/src/serialize.c",
+        prism_path ++ "/src/static_literals.c",
+        prism_path ++ "/src/token_type.c",
+
+        // util 以下
+        prism_path ++ "/src/util/pm_buffer.c",
+        prism_path ++ "/src/util/pm_char.c",
+        prism_path ++ "/src/util/pm_constant_pool.c",
+        prism_path ++ "/src/util/pm_integer.c",
+        prism_path ++ "/src/util/pm_list.c",
+        prism_path ++ "/src/util/pm_memchr.c",
+        prism_path ++ "/src/util/pm_newline_list.c",
+        prism_path ++ "/src/util/pm_string.c",
+        prism_path ++ "/src/util/pm_strncasecmp.c",
+        prism_path ++ "/src/util/pm_strpbrk.c",
+    };
+    for (prism_sources) |src| {
+        exe.addCSourceFile(.{
+            .file = b.path(src),
+            .flags = &.{ "-std=c99", "-I" ++ prism_path ++ "/include" },
+        });
+    }
+
     // This declares intent for the executable to be installed into the
     // install prefix when running `zig build` (i.e. when executing the default
     // step). By default the install prefix is `zig-out/` but can be overridden

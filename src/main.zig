@@ -1,10 +1,25 @@
 const std = @import("std");
 const kaleid = @import("kaleid");
 
+const c = @cImport({
+    @cInclude("prism.h");
+});
+
 pub fn main() !void {
-    // Prints to stderr, ignoring potential errors.
-    std.debug.print("All your {s} are belong to us.\n", .{"codebase"});
-    try kaleid.bufferedPrint();
+    const src = "def hi; puts 'hello'; end";
+
+    var parser: c.pm_parser_t = undefined;
+    c.pm_parser_init(&parser, src, src.len, null);
+
+    const result = c.pm_parse(&parser);
+
+    if (result != 0) {
+        std.debug.print("Parse OK!\n", .{});
+    } else {
+        std.debug.print("Parse failed.\n", .{});
+    }
+
+    c.pm_parser_free(&parser);
 }
 
 test "simple test" {
