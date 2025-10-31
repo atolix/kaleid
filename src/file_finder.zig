@@ -8,6 +8,7 @@ const ignored_directories = [_][]const u8{
     ".zig-cache",
     "zig-out",
     "vendor",
+    "prism",
 };
 
 pub const FileList = struct {

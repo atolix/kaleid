@@ -20,6 +20,6 @@ pub fn main() !void {
         defer gpa.free(pretty);
 
         std.debug.print("Parse OK: {s}\n", .{ruby_file.path});
-        // std.debug.print("{s}\n", .{pretty});
+        std.debug.print("{s}\n", .{pretty});
     }
 }
