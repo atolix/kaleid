@@ -34,7 +34,114 @@ pub fn parseRubyAst(allocator: std.mem.Allocator, source: []const u8) ![]u8 {
     return result;
 }
 
-test "parse Ruby source into pretty-printed AST" {
+test "parseRubyAst reports syntax error when def lacks end" {
+    const allocator = std.testing.allocator;
+    const src = "def hi; puts 'hello'";
+    try std.testing.expectError(error.ParseFailed, parseRubyAst(allocator, src));
+}
+
+test "parse class with interpolated string" {
+    const allocator = std.testing.allocator;
+    const src =
+        \\class Greeter
+        \\  def hello(name)
+        \\    puts "Hello, #{name}!"
+        \\  end
+        \\end
+        \\
+    ;
+    const pretty = try parseRubyAst(allocator, src);
+    defer allocator.free(pretty);
+    const expected =
+        \\@ ProgramNode (location: (1,0)-(5,3))
+        \\+-- locals: []
+        \\+-- statements:
+        \\    @ StatementsNode (location: (1,0)-(5,3))
+        \\    +-- body: (length: 1)
+        \\        +-- @ ClassNode (location: (1,0)-(5,3))
+        \\            +-- locals: []
+        \\            +-- class_keyword_loc: (1,0)-(1,5) = "class"
+        \\            +-- constant_path:
+        \\            |   @ ConstantReadNode (location: (1,6)-(1,13))
+        \\            |   +-- name: :Greeter
+        \\            +-- inheritance_operator_loc: nil
+        \\            +-- superclass: nil
+        \\            +-- body:
+        \\            |   @ StatementsNode (location: (2,2)-(4,5))
+        \\            |   +-- body: (length: 1)
+        \\            |       +-- @ DefNode (location: (2,2)-(4,5))
+        \\            |           +-- name: :hello
+        \\            |           +-- name_loc: (2,6)-(2,11) = "hello"
+        \\            |           +-- receiver: nil
+        \\            |           +-- parameters:
+        \\            |           |   @ ParametersNode (location: (2,12)-(2,16))
+        \\            |           |   +-- requireds: (length: 1)
+        \\            |           |   |   +-- @ RequiredParameterNode (location: (2,12)-(2,16))
+        \\            |           |   |       +-- ParameterFlags: nil
+        \\            |           |   |       +-- name: :name
+        \\            |           |   +-- optionals: (length: 0)
+        \\            |           |   +-- rest: nil
+        \\            |           |   +-- posts: (length: 0)
+        \\            |           |   +-- keywords: (length: 0)
+        \\            |           |   +-- keyword_rest: nil
+        \\            |           |   +-- block: nil
+        \\            |           +-- body:
+        \\            |           |   @ StatementsNode (location: (3,4)-(3,26))
+        \\            |           |   +-- body: (length: 1)
+        \\            |           |       +-- @ CallNode (location: (3,4)-(3,26))
+        \\            |           |           +-- CallNodeFlags: ignore_visibility
+        \\            |           |           +-- receiver: nil
+        \\            |           |           +-- call_operator_loc: nil
+        \\            |           |           +-- name: :puts
+        \\            |           |           +-- message_loc: (3,4)-(3,8) = "puts"
+        \\            |           |           +-- opening_loc: nil
+        \\            |           |           +-- arguments:
+        \\            |           |           |   @ ArgumentsNode (location: (3,9)-(3,26))
+        \\            |           |           |   +-- ArgumentsNodeFlags: nil
+        \\            |           |           |   +-- arguments: (length: 1)
+        \\            |           |           |       +-- @ InterpolatedStringNode (location: (3,9)-(3,26))
+        \\            |           |           |           +-- InterpolatedStringNodeFlags: nil
+        \\            |           |           |           +-- opening_loc: (3,9)-(3,10) = "\""
+        \\            |           |           |           +-- parts: (length: 3)
+        \\            |           |           |           |   +-- @ StringNode (location: (3,10)-(3,17))
+        \\            |           |           |           |   |   +-- StringFlags: frozen
+        \\            |           |           |           |   |   +-- opening_loc: nil
+        \\            |           |           |           |   |   +-- content_loc: (3,10)-(3,17) = "Hello, "
+        \\            |           |           |           |   |   +-- closing_loc: nil
+        \\            |           |           |           |   |   +-- unescaped: "Hello, "
+        \\            |           |           |           |   +-- @ EmbeddedStatementsNode (location: (3,17)-(3,24))
+        \\            |           |           |           |   |   +-- opening_loc: (3,17)-(3,19) = "\#{"
+        \\            |           |           |           |   |   +-- statements:
+        \\            |           |           |           |   |   |   @ StatementsNode (location: (3,19)-(3,23))
+        \\            |           |           |           |   |   |   +-- body: (length: 1)
+        \\            |           |           |           |   |   |       +-- @ LocalVariableReadNode (location: (3,19)-(3,23))
+        \\            |           |           |           |   |   |           +-- name: :name
+        \\            |           |           |           |   |   |           +-- depth: 0
+        \\            |           |           |           |   |   +-- closing_loc: (3,23)-(3,24) = "}"
+        \\            |           |           |           |   +-- @ StringNode (location: (3,24)-(3,25))
+        \\            |           |           |           |       +-- StringFlags: frozen
+        \\            |           |           |           |       +-- opening_loc: nil
+        \\            |           |           |           |       +-- content_loc: (3,24)-(3,25) = "!"
+        \\            |           |           |           |       +-- closing_loc: nil
+        \\            |           |           |           |       +-- unescaped: "!"
+        \\            |           |           |           +-- closing_loc: (3,25)-(3,26) = "\""
+        \\            |           |           +-- closing_loc: nil
+        \\            |           |           +-- block: nil
+        \\            |           +-- locals: [:name]
+        \\            |           +-- def_keyword_loc: (2,2)-(2,5) = "def"
+        \\            |           +-- operator_loc: nil
+        \\            |           +-- lparen_loc: (2,11)-(2,12) = "("
+        \\            |           +-- rparen_loc: (2,16)-(2,17) = ")"
+        \\            |           +-- equal_loc: nil
+        \\            |           +-- end_keyword_loc: (4,2)-(4,5) = "end"
+        \\            +-- end_keyword_loc: (5,0)-(5,3) = "end"
+        \\            +-- name: :Greeter
+        \\
+    ;
+    try std.testing.expectEqualStrings(expected, pretty);
+}
+
+test "parse inline definition pretty print" {
     const allocator = std.testing.allocator;
     const src = "def hi; puts 'hello'; end";
     const expected =
@@ -86,8 +193,103 @@ test "parse Ruby source into pretty-printed AST" {
     try std.testing.expectEqualStrings(expected, pretty);
 }
 
-test "parseRubyAst returns ParseFailed on invalid source" {
+test "parse block with array literal receiver" {
     const allocator = std.testing.allocator;
-    const src = "def hi; puts 'hello'";
-    try std.testing.expectError(error.ParseFailed, parseRubyAst(allocator, src));
+    const src =
+        \\[1, 2, 3].each do |n|
+        \\  puts n * 2
+        \\end
+        \\
+    ;
+    const pretty = try parseRubyAst(allocator, src);
+    defer allocator.free(pretty);
+    const expected =
+        \\@ ProgramNode (location: (1,0)-(3,3))
+        \\+-- locals: []
+        \\+-- statements:
+        \\    @ StatementsNode (location: (1,0)-(3,3))
+        \\    +-- body: (length: 1)
+        \\        +-- @ CallNode (location: (1,0)-(3,3))
+        \\            +-- CallNodeFlags: nil
+        \\            +-- receiver:
+        \\            |   @ ArrayNode (location: (1,0)-(1,9))
+        \\            |   +-- ArrayNodeFlags: nil
+        \\            |   +-- elements: (length: 3)
+        \\            |   |   +-- @ IntegerNode (location: (1,1)-(1,2))
+        \\            |   |   |   +-- IntegerBaseFlags: decimal
+        \\            |   |   |   +-- value: 1
+        \\            |   |   +-- @ IntegerNode (location: (1,4)-(1,5))
+        \\            |   |   |   +-- IntegerBaseFlags: decimal
+        \\            |   |   |   +-- value: 2
+        \\            |   |   +-- @ IntegerNode (location: (1,7)-(1,8))
+        \\            |   |       +-- IntegerBaseFlags: decimal
+        \\            |   |       +-- value: 3
+        \\            |   +-- opening_loc: (1,0)-(1,1) = "["
+        \\            |   +-- closing_loc: (1,8)-(1,9) = "]"
+        \\            +-- call_operator_loc: (1,9)-(1,10) = "."
+        \\            +-- name: :each
+        \\            +-- message_loc: (1,10)-(1,14) = "each"
+        \\            +-- opening_loc: nil
+        \\            +-- arguments: nil
+        \\            +-- closing_loc: nil
+        \\            +-- block:
+        \\                @ BlockNode (location: (1,15)-(3,3))
+        \\                +-- locals: [:n]
+        \\                +-- parameters:
+        \\                |   @ BlockParametersNode (location: (1,18)-(1,21))
+        \\                |   +-- parameters:
+        \\                |   |   @ ParametersNode (location: (1,19)-(1,20))
+        \\                |   |   +-- requireds: (length: 1)
+        \\                |   |   |   +-- @ RequiredParameterNode (location: (1,19)-(1,20))
+        \\                |   |   |       +-- ParameterFlags: nil
+        \\                |   |   |       +-- name: :n
+        \\                |   |   +-- optionals: (length: 0)
+        \\                |   |   +-- rest: nil
+        \\                |   |   +-- posts: (length: 0)
+        \\                |   |   +-- keywords: (length: 0)
+        \\                |   |   +-- keyword_rest: nil
+        \\                |   |   +-- block: nil
+        \\                |   +-- locals: (length: 0)
+        \\                |   +-- opening_loc: (1,18)-(1,19) = "|"
+        \\                |   +-- closing_loc: (1,20)-(1,21) = "|"
+        \\                +-- body:
+        \\                |   @ StatementsNode (location: (2,2)-(2,12))
+        \\                |   +-- body: (length: 1)
+        \\                |       +-- @ CallNode (location: (2,2)-(2,12))
+        \\                |           +-- CallNodeFlags: ignore_visibility
+        \\                |           +-- receiver: nil
+        \\                |           +-- call_operator_loc: nil
+        \\                |           +-- name: :puts
+        \\                |           +-- message_loc: (2,2)-(2,6) = "puts"
+        \\                |           +-- opening_loc: nil
+        \\                |           +-- arguments:
+        \\                |           |   @ ArgumentsNode (location: (2,7)-(2,12))
+        \\                |           |   +-- ArgumentsNodeFlags: nil
+        \\                |           |   +-- arguments: (length: 1)
+        \\                |           |       +-- @ CallNode (location: (2,7)-(2,12))
+        \\                |           |           +-- CallNodeFlags: nil
+        \\                |           |           +-- receiver:
+        \\                |           |           |   @ LocalVariableReadNode (location: (2,7)-(2,8))
+        \\                |           |           |   +-- name: :n
+        \\                |           |           |   +-- depth: 0
+        \\                |           |           +-- call_operator_loc: nil
+        \\                |           |           +-- name: :*
+        \\                |           |           +-- message_loc: (2,9)-(2,10) = "*"
+        \\                |           |           +-- opening_loc: nil
+        \\                |           |           +-- arguments:
+        \\                |           |           |   @ ArgumentsNode (location: (2,11)-(2,12))
+        \\                |           |           |   +-- ArgumentsNodeFlags: nil
+        \\                |           |           |   +-- arguments: (length: 1)
+        \\                |           |           |       +-- @ IntegerNode (location: (2,11)-(2,12))
+        \\                |           |           |           +-- IntegerBaseFlags: decimal
+        \\                |           |           |           +-- value: 2
+        \\                |           |           +-- closing_loc: nil
+        \\                |           |           +-- block: nil
+        \\                |           +-- closing_loc: nil
+        \\                |           +-- block: nil
+        \\                +-- opening_loc: (1,15)-(1,17) = "do"
+        \\                +-- closing_loc: (3,0)-(3,3) = "end"
+        \\
+    ;
+    try std.testing.expectEqualStrings(expected, pretty);
 }
