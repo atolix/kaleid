@@ -2,6 +2,7 @@ const std = @import("std");
 const parser = @import("parser.zig");
 const finder = @import("finder.zig");
 const output = @import("output.zig");
+const formatter = @import("formatter.zig");
 
 pub fn main() !void {
     var gpa_state = std.heap.GeneralPurposeAllocator(.{}){};
@@ -31,5 +32,13 @@ pub fn main() !void {
         defer summary.deinit();
 
         output.printSummary(&summary, ruby_file.path, tree.root.kind);
+
+        var format_result = try formatter.applyRules(gpa, ruby_file.contents);
+        defer format_result.deinit(gpa);
+
+        if (format_result.changed) {
+            std.debug.print("  (formatted guard clauses)\n", .{});
+            std.debug.print("{s}\n", .{format_result.buffer});
+        }
     }
 }
