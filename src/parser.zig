@@ -46,14 +46,18 @@ pub const ParseTree = struct {
     }
 };
 
+/// Returns the Prism node type name corresponding to the numeric `kind`.
 pub fn nodeKindName(kind: prism.pm_node_type_t) []const u8 {
     return std.mem.span(c.pm_node_type_to_str(kind));
 }
 
+/// Casts a Prism C enum value into the Zig alias used throughout the parser module.
 pub fn nodeKindFromC(value: anytype) prism.pm_node_type_t {
     return @as(prism.pm_node_type_t, @intCast(value));
 }
 
+/// Parses `source` into an owned `ParseTree` whose lifetime is tied to `allocator`.
+/// Returns `error.ParseFailed` if Prism reports syntax errors.
 pub fn parseRubyAst(allocator: std.mem.Allocator, source: []const u8) !ParseTree {
     var parser: c.pm_parser_t = undefined;
     c.pm_parser_init(&parser, source.ptr, source.len, null);
@@ -73,6 +77,7 @@ pub fn parseRubyAst(allocator: std.mem.Allocator, source: []const u8) !ParseTree
     };
 }
 
+/// Recursively converts a Prism node into an owned `AstNode`, copying spans and children.
 fn buildNode(allocator: std.mem.Allocator, parser: *const c.pm_parser_t, node: *const c.pm_node_t) !AstNode {
     var children_list = std.ArrayListUnmanaged(AstNode){};
     errdefer {
@@ -113,6 +118,7 @@ const BuildContext = struct {
 
 const ChildPtr = ?*const c.pm_node_t;
 
+/// Bridges Prism's child traversal into Zig, building children and recording failures.
 fn collectChildCallback(child_ptr: ChildPtr, context_ptr: ?*anyopaque) callconv(.c) bool {
     if (child_ptr == null or context_ptr == null) return false;
 
@@ -137,6 +143,7 @@ fn collectChildCallback(child_ptr: ChildPtr, context_ptr: ?*anyopaque) callconv(
     return false;
 }
 
+/// Derives byte/line span information for a Prism node.
 fn makeSpan(parser: *const c.pm_parser_t, node: *const c.pm_node_t) Span {
     return Span{
         .start = makePosition(parser, node.*.location.start),
@@ -144,6 +151,7 @@ fn makeSpan(parser: *const c.pm_parser_t, node: *const c.pm_node_t) Span {
     };
 }
 
+/// Converts a Prism pointer into byte offset and line/column coordinates.
 fn makePosition(parser: *const c.pm_parser_t, ptr_opt: ?*const u8) Position {
     if (ptr_opt == null) {
         return Position{ .offset = 0, .line = 0, .column = 0 };
@@ -228,6 +236,7 @@ test "parseRubyAst records byte spans and line information" {
     try std.testing.expectEqual(@as(u32, 2), def_node.span.end.line);
 }
 
+/// Returns the first direct child whose kind matches `kind`, if any.
 fn findChild(node: *const AstNode, kind: prism.pm_node_type_t) ?*const AstNode {
     for (node.children, 0..) |child, index| {
         if (child.kind == kind) {
@@ -237,6 +246,7 @@ fn findChild(node: *const AstNode, kind: prism.pm_node_type_t) ?*const AstNode {
     return null;
 }
 
+/// Recursively checks whether `node` or any descendant matches `kind`.
 fn hasNode(node: *const AstNode, kind: prism.pm_node_type_t) bool {
     if (node.kind == kind) return true;
     for (node.children) |child| {

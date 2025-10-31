@@ -41,6 +41,8 @@ pub const RubyFileCollection = struct {
     }
 };
 
+/// Recursively collects absolute paths to `.rb` files found under `root_path`.
+/// Returns a list of owned path strings that must be freed via `FileList.deinit`.
 pub fn findFiles(allocator: std.mem.Allocator, root_path: []const u8) !FileList {
     const absolute_root = if (std.fs.path.isAbsolute(root_path))
         try allocator.dupe(u8, root_path)
@@ -63,6 +65,8 @@ pub fn findFiles(allocator: std.mem.Allocator, root_path: []const u8) !FileList 
     };
 }
 
+/// Loads the contents of every Ruby file discovered under `root_path`, returning
+/// owned path/content pairs that must be released with `RubyFileCollection.deinit`.
 pub fn readFiles(allocator: std.mem.Allocator, root_path: []const u8) !RubyFileCollection {
     var paths = try findFiles(allocator, root_path);
     defer paths.deinit();
@@ -94,6 +98,8 @@ pub fn readFiles(allocator: std.mem.Allocator, root_path: []const u8) !RubyFileC
     };
 }
 
+/// Loads only the Ruby files listed in `paths`, resolving relative entries to
+/// absolute paths. Returned buffers are owned and freed by `RubyFileCollection.deinit`.
 pub fn readFilesFromPaths(allocator: std.mem.Allocator, paths: []const []const u8) !RubyFileCollection {
     var results = RubyFileList{};
     errdefer {
@@ -134,6 +140,7 @@ pub fn readFilesFromPaths(allocator: std.mem.Allocator, paths: []const []const u
     };
 }
 
+/// Appends `.rb` files found in `dir_path` into `results`, traversing subdirectories.
 fn collectFiles(allocator: std.mem.Allocator, dir_path: []const u8, results: *PathList) !void {
     var dir = try std.fs.openDirAbsolute(dir_path, .{ .iterate = true });
     defer dir.close();
@@ -164,6 +171,7 @@ fn collectFiles(allocator: std.mem.Allocator, dir_path: []const u8, results: *Pa
     }
 }
 
+/// Reads the entire file at `path`, returning owned path and contents slices.
 fn loadRubyFile(allocator: std.mem.Allocator, path: []const u8) !RubyFile {
     const owned_path = try allocator.dupe(u8, path);
     errdefer allocator.free(owned_path);
@@ -180,6 +188,7 @@ fn loadRubyFile(allocator: std.mem.Allocator, path: []const u8) !RubyFile {
     };
 }
 
+/// Matches directory names that should be skipped during traversal (e.g. hidden or vendor dirs).
 fn shouldSkipDir(name: []const u8) bool {
     if (std.mem.eql(u8, name, ".") or std.mem.eql(u8, name, "..")) {
         return true;
