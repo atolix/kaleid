@@ -5,47 +5,104 @@ const c = @cImport({
     @cInclude("prism.h");
 });
 
+pub fn parseRubyAst(allocator: std.mem.Allocator, source: []const u8) ![]u8 {
+    var parser: c.pm_parser_t = undefined;
+    c.pm_parser_init(&parser, source.ptr, source.len, null);
+    defer c.pm_parser_free(&parser);
+
+    const node = c.pm_parse(&parser);
+    if (node == null) {
+        return error.ParseFailed;
+    }
+
+    if (!c.pm_list_empty_p(&parser.error_list)) {
+        return error.ParseFailed;
+    }
+
+    var buffer: c.pm_buffer_t = undefined;
+    _ = c.pm_buffer_init(&buffer);
+    defer c.pm_buffer_free(&buffer);
+
+    c.pm_prettyprint(&buffer, &parser, node);
+
+    const length = c.pm_buffer_length(&buffer);
+    const result = try allocator.alloc(u8, length);
+    errdefer allocator.free(result);
+
+    const value_ptr = c.pm_buffer_value(&buffer);
+    const slice = value_ptr[0..length];
+    std.mem.copyForwards(u8, result, slice);
+    return result;
+}
+
 pub fn main() !void {
     const src = "def hi; puts 'hello'; end";
 
-    var parser: c.pm_parser_t = undefined;
-    c.pm_parser_init(&parser, src, src.len, null);
+    var gpa_state = std.heap.GeneralPurposeAllocator(.{}){};
+    defer _ = gpa_state.deinit();
+    const gpa = gpa_state.allocator();
 
-    const node = c.pm_parse(&parser);
-    if (node != null) {
-        std.debug.print("Parse OK!\n", .{});
+    const pretty = try parseRubyAst(gpa, src);
+    defer gpa.free(pretty);
 
-        var buffer: c.pm_buffer_t = undefined;
-        _ = c.pm_buffer_init(&buffer);
-
-        c.pm_prettyprint(&buffer, &parser, node);
-
-        const output = c.pm_buffer_value(&buffer);
-        std.debug.print("{s}\n", .{output});
-
-        c.pm_buffer_free(&buffer);
-    } else {
-        std.debug.print("Parse failed.\n", .{});
-    }
-
-    c.pm_parser_free(&parser);
+    std.debug.print("Parse OK!\n", .{});
+    std.debug.print("{s}\n", .{pretty});
 }
 
-test "simple test" {
-    const gpa = std.testing.allocator;
-    var list: std.ArrayList(i32) = .empty;
-    defer list.deinit(gpa); // Try commenting this out and see if zig detects the memory leak!
-    try list.append(gpa, 42);
-    try std.testing.expectEqual(@as(i32, 42), list.pop());
+test "parse Ruby source into pretty-printed AST" {
+    const allocator = std.testing.allocator;
+    const src = "def hi; puts 'hello'; end";
+    const expected =
+        \\@ ProgramNode (location: (1,0)-(1,25))
+        \\+-- locals: []
+        \\+-- statements:
+        \\    @ StatementsNode (location: (1,0)-(1,25))
+        \\    +-- body: (length: 1)
+        \\        +-- @ DefNode (location: (1,0)-(1,25))
+        \\            +-- name: :hi
+        \\            +-- name_loc: (1,4)-(1,6) = "hi"
+        \\            +-- receiver: nil
+        \\            +-- parameters: nil
+        \\            +-- body:
+        \\            |   @ StatementsNode (location: (1,8)-(1,20))
+        \\            |   +-- body: (length: 1)
+        \\            |       +-- @ CallNode (location: (1,8)-(1,20))
+        \\            |           +-- CallNodeFlags: ignore_visibility
+        \\            |           +-- receiver: nil
+        \\            |           +-- call_operator_loc: nil
+        \\            |           +-- name: :puts
+        \\            |           +-- message_loc: (1,8)-(1,12) = "puts"
+        \\            |           +-- opening_loc: nil
+        \\            |           +-- arguments:
+        \\            |           |   @ ArgumentsNode (location: (1,13)-(1,20))
+        \\            |           |   +-- ArgumentsNodeFlags: nil
+        \\            |           |   +-- arguments: (length: 1)
+        \\            |           |       +-- @ StringNode (location: (1,13)-(1,20))
+        \\            |           |           +-- StringFlags: nil
+        \\            |           |           +-- opening_loc: (1,13)-(1,14) = "'"
+        \\            |           |           +-- content_loc: (1,14)-(1,19) = "hello"
+        \\            |           |           +-- closing_loc: (1,19)-(1,20) = "'"
+        \\            |           |           +-- unescaped: "hello"
+        \\            |           +-- closing_loc: nil
+        \\            |           +-- block: nil
+        \\            +-- locals: []
+        \\            +-- def_keyword_loc: (1,0)-(1,3) = "def"
+        \\            +-- operator_loc: nil
+        \\            +-- lparen_loc: nil
+        \\            +-- rparen_loc: nil
+        \\            +-- equal_loc: nil
+        \\            +-- end_keyword_loc: (1,22)-(1,25) = "end"
+        \\
+    ;
+
+    const pretty = try parseRubyAst(allocator, src);
+    defer allocator.free(pretty);
+
+    try std.testing.expectEqualStrings(expected, pretty);
 }
 
-test "fuzz example" {
-    const Context = struct {
-        fn testOne(context: @This(), input: []const u8) anyerror!void {
-            _ = context;
-            // Try passing `--fuzz` to `zig build test` and see if it manages to fail this test case!
-            try std.testing.expect(!std.mem.eql(u8, "canyoufindme", input));
-        }
-    };
-    try std.testing.fuzz(Context{}, Context.testOne, .{});
+test "parseRubyAst returns ParseFailed on invalid source" {
+    const allocator = std.testing.allocator;
+    const src = "def hi; puts 'hello'";
+    try std.testing.expectError(error.ParseFailed, parseRubyAst(allocator, src));
 }
