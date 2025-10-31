@@ -94,6 +94,46 @@ pub fn readRubyFiles(allocator: std.mem.Allocator, root_path: []const u8) !RubyF
     };
 }
 
+pub fn readRubyFilesFromPaths(allocator: std.mem.Allocator, paths: []const []const u8) !RubyFileCollection {
+    var results = RubyFileList{};
+    errdefer {
+        for (results.items) |file| {
+            allocator.free(file.path);
+            allocator.free(file.contents);
+        }
+        results.deinit(allocator);
+    }
+
+    for (paths) |path| {
+        var resolved_storage: ?[]u8 = null;
+        const absolute_path = if (std.fs.path.isAbsolute(path))
+            path
+        else blk: {
+            resolved_storage = try std.fs.cwd().realpathAlloc(allocator, path);
+            break :blk resolved_storage.?;
+        };
+
+        {
+            const entry = try loadRubyFile(allocator, absolute_path);
+            errdefer {
+                allocator.free(entry.path);
+                allocator.free(entry.contents);
+            }
+            try results.append(allocator, entry);
+        }
+
+        if (resolved_storage) |buffer| {
+            allocator.free(buffer);
+        }
+    }
+
+    const files = try results.toOwnedSlice(allocator);
+    return RubyFileCollection{
+        .allocator = allocator,
+        .files = files,
+    };
+}
+
 fn collectRubyFiles(allocator: std.mem.Allocator, dir_path: []const u8, results: *PathList) !void {
     var dir = try std.fs.openDirAbsolute(dir_path, .{ .iterate = true });
     defer dir.close();
@@ -225,6 +265,44 @@ test "readRubyFiles loads file contents alongside absolute paths" {
             saw_first = true;
             try std.testing.expectEqualStrings("puts 'first'\n", file.contents);
         } else if (std.mem.endsWith(u8, file.path, "nested/second.rb")) {
+            saw_second = true;
+            try std.testing.expectEqualStrings("puts 'second'\n", file.contents);
+        }
+    }
+
+    try std.testing.expect(saw_first);
+    try std.testing.expect(saw_second);
+}
+
+test "readRubyFilesFromPaths loads only requested files" {
+    const allocator = std.testing.allocator;
+
+    var tmp_dir = std.testing.tmpDir(.{});
+    defer tmp_dir.cleanup();
+
+    try tmp_dir.dir.writeFile(.{ .sub_path = "first.rb", .data = "puts 'first'\n" });
+    try tmp_dir.dir.writeFile(.{ .sub_path = "second.rb", .data = "puts 'second'\n" });
+    try tmp_dir.dir.writeFile(.{ .sub_path = "ignore.txt", .data = "skip\n" });
+
+    const abs_first = try tmp_dir.dir.realpathAlloc(allocator, "first.rb");
+    defer allocator.free(abs_first);
+    const abs_second = try tmp_dir.dir.realpathAlloc(allocator, "second.rb");
+    defer allocator.free(abs_second);
+
+    const paths = [_][]const u8{ abs_first, abs_second };
+
+    var collection = try readRubyFilesFromPaths(allocator, &paths);
+    defer collection.deinit();
+
+    try std.testing.expectEqual(@as(usize, 2), collection.files.len);
+
+    var saw_first = false;
+    var saw_second = false;
+    for (collection.files) |file| {
+        if (std.mem.endsWith(u8, file.path, "first.rb")) {
+            saw_first = true;
+            try std.testing.expectEqualStrings("puts 'first'\n", file.contents);
+        } else if (std.mem.endsWith(u8, file.path, "second.rb")) {
             saw_second = true;
             try std.testing.expectEqualStrings("puts 'second'\n", file.contents);
         }

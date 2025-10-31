@@ -10,7 +10,14 @@ pub fn main() !void {
     defer _ = gpa_state.deinit();
     const gpa = gpa_state.allocator();
 
-    var ruby_files = try file_finder.readRubyFiles(gpa, ".");
+    const args = try std.process.argsAlloc(gpa);
+    defer std.process.argsFree(gpa, args);
+
+    var ruby_files = if (args.len > 1) blk: {
+        const user_args = args[1..];
+        const path_slices: []const []const u8 = user_args;
+        break :blk try file_finder.readRubyFilesFromPaths(gpa, path_slices);
+    } else try file_finder.readRubyFiles(gpa, ".");
     defer ruby_files.deinit();
 
     if (ruby_files.files.len == 0) {
