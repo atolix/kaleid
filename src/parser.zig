@@ -293,3 +293,85 @@ test "parse block with array literal receiver" {
     ;
     try std.testing.expectEqualStrings(expected, pretty);
 }
+
+test "class with include extend and define_method" {
+    const allocator = std.testing.allocator;
+    const src =
+        \\module Helpers
+        \\  def helper; :helper end
+        \\end
+        \\
+        \\class Greeter
+        \\  include Helpers
+        \\  extend Helpers
+        \\
+        \\  define_method(:greet) do |name|
+        \\    puts "hi #{name}"
+        \\  end
+        \\
+        \\  class << self
+        \\    include Helpers
+        \\  end
+        \\end
+        \\
+    ;
+
+    const pretty = try parseRubyAst(allocator, src);
+    defer allocator.free(pretty);
+
+    try std.testing.expect(std.mem.indexOf(u8, pretty, "name: :include") != null);
+    try std.testing.expect(std.mem.indexOf(u8, pretty, "name: :extend") != null);
+    try std.testing.expect(std.mem.indexOf(u8, pretty, "name: :define_method") != null);
+    try std.testing.expect(std.mem.indexOf(u8, pretty, "name: :Helpers") != null);
+    try std.testing.expect(std.mem.indexOf(u8, pretty, "@ SingletonClassNode") != null);
+}
+
+test "singleton class define_singleton_method and define_method" {
+    const allocator = std.testing.allocator;
+    const src =
+        \\class << self
+        \\  define_singleton_method(:foo) { :foo }
+        \\end
+        \\
+        \\def self.make_method(name)
+        \\  define_method(name) { puts name }
+        \\end
+        \\
+    ;
+
+    const pretty = try parseRubyAst(allocator, src);
+    defer allocator.free(pretty);
+
+    try std.testing.expect(std.mem.indexOf(u8, pretty, "name: :define_singleton_method") != null);
+    try std.testing.expect(std.mem.indexOf(u8, pretty, "@ SingletonClassNode") != null);
+    try std.testing.expect(std.mem.indexOf(u8, pretty, "name: :define_method") != null);
+    try std.testing.expect(std.mem.indexOf(u8, pretty, "name: :make_method") != null);
+}
+
+test "module_function prepend alias and undef usage" {
+    const allocator = std.testing.allocator;
+    const src =
+        \\module Helpers
+        \\  def helper; :helper end
+        \\  module_function :helper
+        \\end
+        \\
+        \\class Example < Object
+        \\  prepend Helpers
+        \\  alias_method :greet, :helper
+        \\  undef :old_method
+        \\end
+        \\
+        \\Example.extend Helpers
+        \\Example.module_function(:helper)
+        \\
+    ;
+
+    const pretty = try parseRubyAst(allocator, src);
+    defer allocator.free(pretty);
+
+    try std.testing.expect(std.mem.indexOf(u8, pretty, "name: :module_function") != null);
+    try std.testing.expect(std.mem.indexOf(u8, pretty, "name: :prepend") != null);
+    try std.testing.expect(std.mem.indexOf(u8, pretty, "@ UndefNode") != null);
+    try std.testing.expect(std.mem.indexOf(u8, pretty, "name: :alias_method") != null);
+}
