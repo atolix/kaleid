@@ -11,10 +11,19 @@ pub fn main() !void {
     var parser: c.pm_parser_t = undefined;
     c.pm_parser_init(&parser, src, src.len, null);
 
-    const result = c.pm_parse(&parser);
-
-    if (result != 0) {
+    const node = c.pm_parse(&parser);
+    if (node != null) {
         std.debug.print("Parse OK!\n", .{});
+
+        var buffer: c.pm_buffer_t = undefined;
+        _ = c.pm_buffer_init(&buffer);
+
+        c.pm_prettyprint(&buffer, &parser, node);
+
+        const output = c.pm_buffer_value(&buffer);
+        std.debug.print("{s}\n", .{output});
+
+        c.pm_buffer_free(&buffer);
     } else {
         std.debug.print("Parse failed.\n", .{});
     }
