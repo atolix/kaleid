@@ -41,7 +41,7 @@ pub const RubyFileCollection = struct {
     }
 };
 
-pub fn findRubyFiles(allocator: std.mem.Allocator, root_path: []const u8) !FileList {
+pub fn findFiles(allocator: std.mem.Allocator, root_path: []const u8) !FileList {
     const absolute_root = if (std.fs.path.isAbsolute(root_path))
         try allocator.dupe(u8, root_path)
     else
@@ -54,7 +54,7 @@ pub fn findRubyFiles(allocator: std.mem.Allocator, root_path: []const u8) !FileL
         results.deinit(allocator);
     }
 
-    try collectRubyFiles(allocator, absolute_root, &results);
+    try collectFiles(allocator, absolute_root, &results);
 
     const items = try results.toOwnedSlice(allocator);
     return FileList{
@@ -63,8 +63,8 @@ pub fn findRubyFiles(allocator: std.mem.Allocator, root_path: []const u8) !FileL
     };
 }
 
-pub fn readRubyFiles(allocator: std.mem.Allocator, root_path: []const u8) !RubyFileCollection {
-    var paths = try findRubyFiles(allocator, root_path);
+pub fn readFiles(allocator: std.mem.Allocator, root_path: []const u8) !RubyFileCollection {
+    var paths = try findFiles(allocator, root_path);
     defer paths.deinit();
 
     var results = RubyFileList{};
@@ -94,7 +94,7 @@ pub fn readRubyFiles(allocator: std.mem.Allocator, root_path: []const u8) !RubyF
     };
 }
 
-pub fn readRubyFilesFromPaths(allocator: std.mem.Allocator, paths: []const []const u8) !RubyFileCollection {
+pub fn readFilesFromPaths(allocator: std.mem.Allocator, paths: []const []const u8) !RubyFileCollection {
     var results = RubyFileList{};
     errdefer {
         for (results.items) |file| {
@@ -134,7 +134,7 @@ pub fn readRubyFilesFromPaths(allocator: std.mem.Allocator, paths: []const []con
     };
 }
 
-fn collectRubyFiles(allocator: std.mem.Allocator, dir_path: []const u8, results: *PathList) !void {
+fn collectFiles(allocator: std.mem.Allocator, dir_path: []const u8, results: *PathList) !void {
     var dir = try std.fs.openDirAbsolute(dir_path, .{ .iterate = true });
     defer dir.close();
 
@@ -148,7 +148,7 @@ fn collectRubyFiles(allocator: std.mem.Allocator, dir_path: []const u8, results:
 
                 const child_dir_path = try std.fs.path.join(allocator, &.{ dir_path, entry.name });
                 defer allocator.free(child_dir_path);
-                try collectRubyFiles(allocator, child_dir_path, results);
+                try collectFiles(allocator, child_dir_path, results);
             },
             .file => {
                 if (!std.mem.endsWith(u8, entry.name, ".rb")) {
@@ -199,7 +199,7 @@ fn shouldSkipDir(name: []const u8) bool {
     return false;
 }
 
-test "findRubyFiles collects rb files recursively" {
+test "findFiles collects rb files recursively" {
     const allocator = std.testing.allocator;
 
     var tmp_dir = std.testing.tmpDir(.{});
@@ -215,7 +215,7 @@ test "findRubyFiles collects rb files recursively" {
     const root_path = try tmp_dir.dir.realpathAlloc(allocator, ".");
     defer allocator.free(root_path);
 
-    var list = try findRubyFiles(allocator, root_path);
+    var list = try findFiles(allocator, root_path);
     defer list.deinit();
 
     try std.testing.expectEqual(@as(usize, 2), list.items.len);
@@ -237,7 +237,7 @@ test "findRubyFiles collects rb files recursively" {
     }
 }
 
-test "readRubyFiles loads file contents alongside absolute paths" {
+test "readFiles loads file contents alongside absolute paths" {
     const allocator = std.testing.allocator;
 
     var tmp_dir = std.testing.tmpDir(.{});
@@ -253,7 +253,7 @@ test "readRubyFiles loads file contents alongside absolute paths" {
     const root_path = try tmp_dir.dir.realpathAlloc(allocator, ".");
     defer allocator.free(root_path);
 
-    var collection = try readRubyFiles(allocator, root_path);
+    var collection = try readFiles(allocator, root_path);
     defer collection.deinit();
 
     try std.testing.expectEqual(@as(usize, 2), collection.files.len);
@@ -274,7 +274,7 @@ test "readRubyFiles loads file contents alongside absolute paths" {
     try std.testing.expect(saw_second);
 }
 
-test "readRubyFilesFromPaths loads only requested files" {
+test "readFilesFromPaths loads only requested files" {
     const allocator = std.testing.allocator;
 
     var tmp_dir = std.testing.tmpDir(.{});
@@ -291,7 +291,7 @@ test "readRubyFilesFromPaths loads only requested files" {
 
     const paths = [_][]const u8{ abs_first, abs_second };
 
-    var collection = try readRubyFilesFromPaths(allocator, &paths);
+    var collection = try readFilesFromPaths(allocator, &paths);
     defer collection.deinit();
 
     try std.testing.expectEqual(@as(usize, 2), collection.files.len);

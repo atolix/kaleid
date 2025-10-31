@@ -1,6 +1,6 @@
 const std = @import("std");
 const parser = @import("parser.zig");
-const file_finder = @import("file_finder.zig");
+const finder = @import("finder.zig");
 
 const CLASS_KIND = parser.nodeKindFromC(parser.prism.PM_CLASS_NODE);
 const DEF_KIND = parser.nodeKindFromC(parser.prism.PM_DEF_NODE);
@@ -16,8 +16,8 @@ pub fn main() !void {
     var ruby_files = if (args.len > 1) blk: {
         const user_args = args[1..];
         const path_slices: []const []const u8 = user_args;
-        break :blk try file_finder.readRubyFilesFromPaths(gpa, path_slices);
-    } else try file_finder.readRubyFiles(gpa, ".");
+        break :blk try finder.readFilesFromPaths(gpa, path_slices);
+    } else try finder.readFiles(gpa, ".");
     defer ruby_files.deinit();
 
     if (ruby_files.files.len == 0) {
