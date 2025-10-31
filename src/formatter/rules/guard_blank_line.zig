@@ -1,4 +1,5 @@
 const std = @import("std");
+const utils = @import("../utils.zig");
 
 pub const Result = struct {
     changed: bool,
@@ -22,7 +23,7 @@ pub fn apply(allocator: std.mem.Allocator, source: []const u8) !Result {
 
     while (lines.next()) |line| : (line_index += 1) {
         if (pending_guard) {
-            if (!isBlank(line)) {
+            if (!utils.isBlankLine(line)) {
                 try builder.append(allocator, '\n');
                 changed = true;
             }
@@ -53,31 +54,7 @@ pub fn apply(allocator: std.mem.Allocator, source: []const u8) !Result {
 fn isGuardReturn(line: []const u8) bool {
     const trimmed = std.mem.trim(u8, line, " \t");
     if (!std.mem.startsWith(u8, trimmed, "return")) return false;
-    return hasGuardKeyword(trimmed, "if") or hasGuardKeyword(trimmed, "unless");
-}
-
-fn hasGuardKeyword(line: []const u8, keyword: []const u8) bool {
-    var search_index: usize = 0;
-    while (std.mem.indexOfPos(u8, line, search_index, keyword)) |idx| {
-        const before = if (idx == 0) null else line[idx - 1];
-        const after_index = idx + keyword.len;
-        const after = if (after_index < line.len) line[after_index] else null;
-
-        const before_ok = before == null or std.ascii.isWhitespace(before.?);
-        const after_ok = after == null or std.ascii.isWhitespace(after.?);
-
-        if (before_ok and after_ok) return true;
-
-        search_index = idx + 1;
-    }
-    return false;
-}
-
-fn isBlank(line: []const u8) bool {
-    for (line) |ch| {
-        if (!std.ascii.isWhitespace(ch)) return false;
-    }
-    return true;
+    return utils.containsKeywordAsWord(trimmed, "if") or utils.containsKeywordAsWord(trimmed, "unless");
 }
 
 test "guard blank line inserts blank line after guard" {
