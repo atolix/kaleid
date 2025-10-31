@@ -53,7 +53,24 @@ pub fn apply(allocator: std.mem.Allocator, source: []const u8) !Result {
 fn isGuardReturn(line: []const u8) bool {
     const trimmed = std.mem.trim(u8, line, " \t");
     if (!std.mem.startsWith(u8, trimmed, "return")) return false;
-    return std.mem.indexOf(u8, trimmed, " if ") != null or std.mem.endsWith(u8, trimmed, " if") or std.mem.indexOf(u8, trimmed, " if\t") != null;
+    return hasGuardKeyword(trimmed, "if") or hasGuardKeyword(trimmed, "unless");
+}
+
+fn hasGuardKeyword(line: []const u8, keyword: []const u8) bool {
+    var search_index: usize = 0;
+    while (std.mem.indexOfPos(u8, line, search_index, keyword)) |idx| {
+        const before = if (idx == 0) null else line[idx - 1];
+        const after_index = idx + keyword.len;
+        const after = if (after_index < line.len) line[after_index] else null;
+
+        const before_ok = before == null or std.ascii.isWhitespace(before.?);
+        const after_ok = after == null or std.ascii.isWhitespace(after.?);
+
+        if (before_ok and after_ok) return true;
+
+        search_index = idx + 1;
+    }
+    return false;
 }
 
 fn isBlank(line: []const u8) bool {
@@ -71,6 +88,16 @@ test "guard blank line inserts blank line after guard" {
 
     try std.testing.expect(result.changed);
     try std.testing.expectEqualStrings("return if foo\n\nputs 'bar'", result.buffer);
+}
+
+test "guard blank line supports unless" {
+    const allocator = std.testing.allocator;
+    const input = "return unless foo\nputs 'bar'";
+    var result = try apply(allocator, input);
+    defer result.deinit(allocator);
+
+    try std.testing.expect(result.changed);
+    try std.testing.expectEqualStrings("return unless foo\n\nputs 'bar'", result.buffer);
 }
 
 test "guard blank line leaves existing blank line" {
