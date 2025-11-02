@@ -1,6 +1,7 @@
 const std = @import("std");
 const guard_blank_line = @import("formatter/rules/guard_blank_line.zig");
 const operator_spacing = @import("formatter/rules/operator_spacing.zig");
+const align_method_chain = @import("formatter/rules/align_method_chain.zig");
 const rule_types = @import("formatter/rule.zig");
 
 pub const FormatResult = struct {
@@ -13,6 +14,7 @@ pub const FormatResult = struct {
 };
 
 const rules = [_]rule_types.Rule{
+    .{ .apply = align_method_chain.apply },
     .{ .apply = guard_blank_line.apply },
     .{ .apply = operator_spacing.apply },
 };
