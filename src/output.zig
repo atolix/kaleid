@@ -105,15 +105,15 @@ pub fn printSummary(summary: *const FileSummary, file_path: []const u8, root_kin
         },
     );
 
-    if (summary.definitions.len == 0) return;
+    // if (summary.definitions.len == 0) return;
 
-    std.debug.print("  Definitions:\n", .{});
-    for (summary.definitions) |defn| {
-        std.debug.print(
-            "    {s} @ line {d} column {d}\n",
-            .{ defn.name, defn.span.start.line + 1, defn.span.start.column + 1 },
-        );
-    }
+    // std.debug.print("  Definitions:\n", .{});
+    // for (summary.definitions) |defn| {
+    //     std.debug.print(
+    //         "    {s} @ line {d} column {d}\n",
+    //         .{ defn.name, defn.span.start.line + 1, defn.span.start.column + 1 },
+    //     );
+    // }
 }
 
 test "summarize captures counts and definitions" {
