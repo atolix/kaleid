@@ -3,6 +3,12 @@ const rule_types = @import("../rule.zig");
 
 pub const Result = rule_types.RuleResult;
 
+// Example transform:
+// x=1+2
+//
+// =>
+// x = 1 + 2
+//
 const Operator = struct {
     text: []const u8,
     require_binary_context: bool,

@@ -3,6 +3,16 @@ const rule_types = @import("../rule.zig");
 
 pub const Result = rule_types.RuleResult;
 
+// Example transform:
+// record
+//       .reload
+//     .touch
+//
+// =>
+// record
+//     .reload
+//     .touch
+//
 const ChainInfo = struct {
     indent_len: usize,
 };

@@ -4,6 +4,15 @@ const rule_types = @import("../rule.zig");
 
 pub const Result = rule_types.RuleResult;
 
+// Example transform:
+// return if foo
+// puts 'bar'
+//
+// =>
+// return if foo
+//
+// puts 'bar'
+//
 /// Ensures guard clauses like `return if condition` are followed by a blank line.
 /// Returns either the original buffer or a newly allocated formatted copy.
 pub fn apply(allocator: std.mem.Allocator, source: []const u8) !Result {
