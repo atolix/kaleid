@@ -20,6 +20,13 @@ pub const Span = struct {
 };
 
 pub const AstNode = struct {
+    /// Prism node converted into Zig, carrying its kind, flags, span, and children.
+    ///
+    /// Node metadata mirrored from Prism:
+    /// - `kind` stores the pm_node_type_t value describing the node type.
+    /// - `flags` carries Prism-specific bit flags for extra attributes.
+    /// - `span` records the byte/line range covered by this node.
+    /// - `children` owns the recursive subtree.
     kind: NodeKind,
     flags: u32,
     span: Span,
@@ -34,11 +41,20 @@ pub const AstNode = struct {
 };
 
 pub const ParseTree = struct {
+    /// Owns a complete AST for a single Ruby source file.
+    /// Layout overview (ASCII):
+    ///   ParseTree
+    ///     |- allocator : std.mem.Allocator
+    ///     |- source    : []const u8
+    ///     \- root ----> AstNode (kind/flags/span/children...)
+    /// The tree keeps the allocator used to build every AstNode so that
+    /// `deinit` can walk the subtree and free all associated allocations.
     allocator: std.mem.Allocator,
     source: []const u8,
     root: AstNode,
 
     pub fn deinit(self: *ParseTree) void {
+        // Cleans up the entire AST by recursively deinitializing the root node.
         self.root.deinit(self.allocator);
     }
 };
