@@ -35,7 +35,7 @@ pub fn main() !void {
 
         const formatted = try formatter.applyRulesToFile(gpa, ruby_file.path, ruby_file.contents);
         if (formatted) {
-            std.debug.print("  (formatted guard clauses)\n", .{});
+            std.debug.print("  (formatted)\n", .{});
         }
     }
 }
