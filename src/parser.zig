@@ -3,6 +3,7 @@ const std = @import("std");
 const common = @import("parser/common.zig");
 const types = @import("parser/types.zig");
 const api = @import("parser/api.zig");
+const test_utils = @import("test/utils.zig");
 
 pub const prism = common.prism;
 pub const NodeKind = types.NodeKind;
@@ -45,14 +46,14 @@ test "parseRubyAst builds nested structure for class definition" {
 
     try std.testing.expectEqual(program_kind, tree.root.kind);
 
-    const statements = findChild(&tree.root, statements_kind) orelse return error.MissingStatements;
-    const class_node = findChild(statements, class_kind) orelse return error.MissingClass;
-    const class_body = findChild(class_node, statements_kind) orelse return error.MissingClassBody;
-    const def_node = findChild(class_body, def_kind) orelse return error.MissingDef;
-    const def_body = findChild(def_node, statements_kind) orelse return error.MissingDefBody;
-    const call_node = findChild(def_body, call_kind) orelse return error.MissingCall;
+    const statements = test_utils.findChild(&tree.root, statements_kind) orelse return error.MissingStatements;
+    const class_node = test_utils.findChild(statements, class_kind) orelse return error.MissingClass;
+    const class_body = test_utils.findChild(class_node, statements_kind) orelse return error.MissingClassBody;
+    const def_node = test_utils.findChild(class_body, def_kind) orelse return error.MissingDef;
+    const def_body = test_utils.findChild(def_node, statements_kind) orelse return error.MissingDefBody;
+    const call_node = test_utils.findChild(def_body, call_kind) orelse return error.MissingCall;
 
-    try std.testing.expect(hasNode(call_node, interpolated_kind));
+    try std.testing.expect(test_utils.hasNode(call_node, interpolated_kind));
 }
 
 test "parseRubyAst records byte spans and line information" {
@@ -71,8 +72,8 @@ test "parseRubyAst records byte spans and line information" {
     const statements_kind = nodeKindFromC(c.PM_STATEMENTS_NODE);
     const def_kind = nodeKindFromC(c.PM_DEF_NODE);
 
-    const statements = findChild(&tree.root, statements_kind) orelse return error.MissingStatements;
-    const def_node = findChild(statements, def_kind) orelse return error.MissingDef;
+    const statements = test_utils.findChild(&tree.root, statements_kind) orelse return error.MissingStatements;
+    const def_node = test_utils.findChild(statements, def_kind) orelse return error.MissingDef;
 
     try std.testing.expectEqual(@as(usize, 0), def_node.span.start.offset);
     try std.testing.expectEqual(@as(u32, 0), def_node.span.start.line);
@@ -80,21 +81,4 @@ test "parseRubyAst records byte spans and line information" {
 
     try std.testing.expect(def_node.span.end.offset > 0);
     try std.testing.expectEqual(@as(u32, 2), def_node.span.end.line);
-}
-
-fn findChild(node: *const AstNode, kind: NodeKind) ?*const AstNode {
-    for (node.children, 0..) |child, index| {
-        if (child.kind == kind) {
-            return &node.children[index];
-        }
-    }
-    return null;
-}
-
-fn hasNode(node: *const AstNode, kind: NodeKind) bool {
-    if (node.kind == kind) return true;
-    for (node.children) |child| {
-        if (hasNode(&child, kind)) return true;
-    }
-    return false;
 }
