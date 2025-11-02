@@ -1,5 +1,6 @@
 const std = @import("std");
 const guard_blank_line = @import("formatter/rules/guard_blank_line.zig");
+const operator_spacing = @import("formatter/rules/operator_spacing.zig");
 
 pub const FormatResult = struct {
     changed: bool,
@@ -21,6 +22,14 @@ pub fn applyRules(allocator: std.mem.Allocator, source: []const u8) !FormatResul
     }
 
     if (!guard.changed) guard.deinit(allocator);
+
+    var spacing = try operator_spacing.apply(allocator, current.buffer);
+    if (spacing.changed) {
+        if (current.changed) allocator.free(current.buffer);
+        current = FormatResult{ .changed = true, .buffer = spacing.buffer };
+    }
+
+    if (!spacing.changed) spacing.deinit(allocator);
 
     return current;
 }
