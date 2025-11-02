@@ -33,12 +33,9 @@ pub fn main() !void {
 
         output.printSummary(&summary, ruby_file.path, tree.root.kind);
 
-        var format_result = try formatter.applyRules(gpa, ruby_file.contents);
-        defer format_result.deinit(gpa);
-
-        if (format_result.changed) {
+        const formatted = try formatter.applyRulesToFile(gpa, ruby_file.path, ruby_file.contents);
+        if (formatted) {
             std.debug.print("  (formatted guard clauses)\n", .{});
-            std.debug.print("{s}\n", .{format_result.buffer});
         }
     }
 }
