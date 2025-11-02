@@ -1,13 +1,7 @@
 const std = @import("std");
+const rule_types = @import("../rule.zig");
 
-pub const Result = struct {
-    changed: bool,
-    buffer: []u8,
-
-    pub fn deinit(self: *Result, allocator: std.mem.Allocator) void {
-        if (self.changed) allocator.free(self.buffer);
-    }
-};
+pub const Result = rule_types.RuleResult;
 
 const Operator = struct {
     text: []const u8,

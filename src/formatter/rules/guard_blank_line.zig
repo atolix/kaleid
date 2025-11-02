@@ -1,14 +1,8 @@
 const std = @import("std");
 const utils = @import("../utils.zig");
+const rule_types = @import("../rule.zig");
 
-pub const Result = struct {
-    changed: bool,
-    buffer: []u8,
-
-    pub fn deinit(self: *Result, allocator: std.mem.Allocator) void {
-        if (self.changed) allocator.free(self.buffer);
-    }
-};
+pub const Result = rule_types.RuleResult;
 
 /// Ensures guard clauses like `return if condition` are followed by a blank line.
 /// Returns either the original buffer or a newly allocated formatted copy.
