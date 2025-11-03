@@ -1,5 +1,6 @@
 const std = @import("std");
 const rule_types = @import("../rule.zig");
+const utils = @import("../utils.zig");
 
 pub const Result = rule_types.RuleResult;
 
@@ -108,7 +109,7 @@ fn handleOpenBrace(
     index.* += 1;
 
     if (kind == .block) {
-        skipSpaces(source, index);
+        utils.skipSpaces(source, index);
 
         if (index.* < source.len) {
             const next = source[index.*];
@@ -125,7 +126,7 @@ fn handleOpenBrace(
 }
 
 fn classifyBrace(builder_items: []u8) BraceKind {
-    const prev_char = findPrevNonWhitespace(builder_items) orelse return .literal;
+    const prev_char = utils.findPrevNonWhitespace(builder_items) orelse return .literal;
     return switch (prev_char) {
         '\n', '{', '[', '(', '=', ':', ',', ';' => .literal,
         else => blk: {
@@ -138,7 +139,7 @@ fn classifyBrace(builder_items: []u8) BraceKind {
 }
 
 fn ensureSpaceBeforeBrace(allocator: std.mem.Allocator, builder: *std.ArrayListUnmanaged(u8)) !void {
-    const trailing = countTrailingSpaces(builder.items);
+    const trailing = utils.countTrailingSpaces(builder.items);
     const prefix_len = builder.items.len - trailing;
     if (prefix_len == 0) return;
 
@@ -158,7 +159,7 @@ fn ensureSpaceBeforeBrace(allocator: std.mem.Allocator, builder: *std.ArrayListU
 }
 
 fn normalizeSpaceBeforeClosing(allocator: std.mem.Allocator, builder: *std.ArrayListUnmanaged(u8)) !void {
-    const trailing = countTrailingSpaces(builder.items);
+    const trailing = utils.countTrailingSpaces(builder.items);
     if (trailing > 1) {
         builder.shrinkRetainingCapacity(builder.items.len - (trailing - 1));
     }
@@ -171,41 +172,6 @@ fn normalizeSpaceBeforeClosing(allocator: std.mem.Allocator, builder: *std.Array
     if (trailing == 0) {
         try builder.append(allocator, ' ');
     }
-}
-
-fn skipSpaces(source: []const u8, index: *usize) void {
-    while (index.* < source.len) : (index.* += 1) {
-        const ch = source[index.*];
-        if (ch != ' ' and ch != '\t') break;
-    }
-}
-
-fn countTrailingSpaces(buffer: []const u8) usize {
-    var count: usize = 0;
-    var idx = buffer.len;
-    while (idx > 0) {
-        const ch = buffer[idx - 1];
-        if (ch == ' ' or ch == '\t') {
-            idx -= 1;
-            count += 1;
-            continue;
-        }
-        break;
-    }
-    return count;
-}
-
-fn findPrevNonWhitespace(buffer: []u8) ?u8 {
-    if (buffer.len == 0) return null;
-    var idx: usize = buffer.len;
-    while (idx > 0) {
-        idx -= 1;
-        const ch = buffer[idx];
-        if (ch != ' ' and ch != '\t') {
-            return ch;
-        }
-    }
-    return null;
 }
 
 fn popBrace(brace_stack: *std.ArrayListUnmanaged(BraceKind)) BraceKind {

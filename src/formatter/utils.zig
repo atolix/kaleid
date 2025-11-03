@@ -29,6 +29,44 @@ pub fn containsKeywordAsWord(line: []const u8, keyword: []const u8) bool {
     return false;
 }
 
+/// Returns the last non-space character in `buffer`, ignoring trailing spaces and tabs.
+pub fn findPrevNonWhitespace(buffer: []const u8) ?u8 {
+    if (buffer.len == 0) return null;
+    var idx: usize = buffer.len;
+    while (idx > 0) {
+        idx -= 1;
+        const ch = buffer[idx];
+        if (ch != ' ' and ch != '\t') {
+            return ch;
+        }
+    }
+    return null;
+}
+
+/// Counts trailing spaces and tabs at the end of `buffer`.
+pub fn countTrailingSpaces(buffer: []const u8) usize {
+    var count: usize = 0;
+    var idx = buffer.len;
+    while (idx > 0) {
+        const ch = buffer[idx - 1];
+        if (ch == ' ' or ch == '\t') {
+            idx -= 1;
+            count += 1;
+            continue;
+        }
+        break;
+    }
+    return count;
+}
+
+/// Advances `index` while the current character in `source` is space or tab.
+pub fn skipSpaces(source: []const u8, index: *usize) void {
+    while (index.* < source.len) : (index.* += 1) {
+        const ch = source[index.*];
+        if (ch != ' ' and ch != '\t') break;
+    }
+}
+
 test "isBlankLine returns true for whitespace" {
     try std.testing.expect(isBlankLine("   \t"));
 }
@@ -43,4 +81,19 @@ test "containsKeywordAsWord matches surrounded keyword" {
 
 test "containsKeywordAsWord ignores suffix" {
     try std.testing.expect(!containsKeywordAsWord("return suffix", "if"));
+}
+
+test "findPrevNonWhitespace finds character" {
+    try std.testing.expectEqual(@as(?u8, 'b'), findPrevNonWhitespace("ab  "));
+}
+
+test "countTrailingSpaces counts spaces" {
+    try std.testing.expectEqual(@as(usize, 3), countTrailingSpaces("foo   "));
+}
+
+test "skipSpaces advances past spaces and tabs" {
+    const source = "foo  \tbar";
+    var index: usize = 3;
+    skipSpaces(source, &index);
+    try std.testing.expectEqual(@as(usize, 6), index);
 }

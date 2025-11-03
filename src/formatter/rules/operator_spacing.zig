@@ -1,5 +1,6 @@
 const std = @import("std");
 const rule_types = @import("../rule.zig");
+const utils = @import("../utils.zig");
 
 pub const Result = rule_types.RuleResult;
 
@@ -120,7 +121,7 @@ fn handleOperator(
 
             index.* += op.text.len;
 
-            skipSpaces(source, index);
+            utils.skipSpaces(source, index);
 
             if (needsTrailingSpace(source, index.*)) {
                 try builder.append(allocator, ' ');
@@ -138,7 +139,7 @@ fn matchesOperator(source: []const u8, op: []const u8, index: usize) bool {
 }
 
 fn hasBinaryContext(builder_items: []u8, source: []const u8, index: usize, op_len: usize) bool {
-    const left = findPrevNonWhitespace(builder_items);
+    const left = utils.findPrevNonWhitespace(builder_items);
     const right = findNextNonWhitespace(source, index + op_len);
 
     if (left == null or right == null) return false;
@@ -153,19 +154,6 @@ fn isBinaryRightChar(ch: u8) bool {
     return std.ascii.isAlphanumeric(ch) or ch == '_' or ch == '(' or ch == '[' or ch == '"' or ch == '\'' or ch == '`';
 }
 
-fn findPrevNonWhitespace(buffer: []u8) ?u8 {
-    if (buffer.len == 0) return null;
-    var idx: usize = buffer.len;
-    while (idx > 0) {
-        idx -= 1;
-        const ch = buffer[idx];
-        if (ch != ' ' and ch != '\t') {
-            return ch;
-        }
-    }
-    return null;
-}
-
 fn findNextNonWhitespace(source: []const u8, start: usize) ?u8 {
     var idx = start;
     while (idx < source.len) {
@@ -178,13 +166,6 @@ fn findNextNonWhitespace(source: []const u8, start: usize) ?u8 {
     return null;
 }
 
-fn skipSpaces(source: []const u8, index: *usize) void {
-    while (index.* < source.len) : (index.* += 1) {
-        const ch = source[index.*];
-        if (ch != ' ' and ch != '\t') break;
-    }
-}
-
 fn needsTrailingSpace(source: []const u8, index: usize) bool {
     if (index >= source.len) return false;
     const ch = source[index];
@@ -192,31 +173,16 @@ fn needsTrailingSpace(source: []const u8, index: usize) bool {
 }
 
 fn normalizeSpaceBeforeOperator(allocator: std.mem.Allocator, builder: *std.ArrayListUnmanaged(u8)) !void {
-    const left_char = findPrevNonWhitespace(builder.items);
+    const left_char = utils.findPrevNonWhitespace(builder.items);
     if (left_char == null) return;
     if (left_char.? == '\n') return;
 
-    const trailing = countTrailingSpaces(builder.items);
+    const trailing = utils.countTrailingSpaces(builder.items);
     if (trailing > 0) {
         builder.shrinkRetainingCapacity(builder.items.len - trailing);
     }
 
     try builder.append(allocator, ' ');
-}
-
-fn countTrailingSpaces(buffer: []const u8) usize {
-    var count: usize = 0;
-    var idx = buffer.len;
-    while (idx > 0) {
-        const ch = buffer[idx - 1];
-        if (ch == ' ' or ch == '\t') {
-            idx -= 1;
-            count += 1;
-            continue;
-        }
-        break;
-    }
-    return count;
 }
 
 test "operator spacing inserts spaces around equals and arithmetic" {
