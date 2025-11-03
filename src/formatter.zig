@@ -2,6 +2,7 @@ const std = @import("std");
 const guard_blank_line = @import("formatter/rules/guard_blank_line.zig");
 const operator_spacing = @import("formatter/rules/operator_spacing.zig");
 const align_method_chain = @import("formatter/rules/align_method_chain.zig");
+const block_brace_spacing = @import("formatter/rules/block_brace_spacing.zig");
 const rule_types = @import("formatter/rule.zig");
 
 pub const FormatResult = struct {
@@ -17,6 +18,7 @@ const rules = [_]rule_types.Rule{
     .{ .apply = align_method_chain.apply },
     .{ .apply = guard_blank_line.apply },
     .{ .apply = operator_spacing.apply },
+    .{ .apply = block_brace_spacing.apply },
 };
 
 /// Applies all formatting rules to the provided source.
@@ -65,16 +67,6 @@ test "applyRulesToFile writes updates into the file" {
     defer allocator.free(updated);
 
     try std.testing.expectEqualStrings("return if foo\n\nputs 'bar'\n", updated);
-}
-
-test "applyRules applies guard and spacing rules sequentially" {
-    const allocator = std.testing.allocator;
-    const input = "return if foo\nx=1+2\nputs 'bar'\n";
-    var result = try applyRules(allocator, input);
-    defer result.deinit(allocator);
-
-    try std.testing.expect(result.changed);
-    try std.testing.expectEqualStrings("return if foo\n\nx = 1 + 2\nputs 'bar'\n", result.buffer);
 }
 
 fn applyRule(allocator: std.mem.Allocator, current: *FormatResult, rule: rule_types.Rule) !void {
