@@ -65,19 +65,7 @@ pub fn apply(allocator: std.mem.Allocator, source: []const u8) !Result {
             continue;
         }
 
-        if (in_comment) {
-            try builder.append(allocator, ch);
-            if (ch == '\n') {
-                in_comment = false;
-            }
-            i += 1;
-            continue;
-        }
-
-        if (ch == '#') {
-            in_comment = true;
-            try builder.append(allocator, ch);
-            i += 1;
+        if (try utils.handleComment(allocator, source, &builder, &i, &in_comment)) {
             continue;
         }
 

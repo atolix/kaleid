@@ -67,6 +67,36 @@ pub fn skipSpaces(source: []const u8, index: *usize) void {
     }
 }
 
+/// Handles Ruby `#` comments by appending the current character and updating `in_comment`.
+/// Returns `true` when the caller should continue to the next loop iteration.
+pub fn handleComment(
+    allocator: std.mem.Allocator,
+    source: []const u8,
+    builder: *std.ArrayListUnmanaged(u8),
+    index: *usize,
+    in_comment: *bool,
+) !bool {
+    const ch = source[index.*];
+
+    if (in_comment.*) {
+        try builder.append(allocator, ch);
+        if (ch == '\n') {
+            in_comment.* = false;
+        }
+        index.* += 1;
+        return true;
+    }
+
+    if (ch == '#') {
+        in_comment.* = true;
+        try builder.append(allocator, ch);
+        index.* += 1;
+        return true;
+    }
+
+    return false;
+}
+
 test "isBlankLine returns true for whitespace" {
     try std.testing.expect(isBlankLine("   \t"));
 }
@@ -96,4 +126,26 @@ test "skipSpaces advances past spaces and tabs" {
     var index: usize = 3;
     skipSpaces(source, &index);
     try std.testing.expectEqual(@as(usize, 6), index);
+}
+
+test "handleComment consumes characters until newline" {
+    const allocator = std.testing.allocator;
+    var builder = std.ArrayListUnmanaged(u8){};
+    defer builder.deinit(allocator);
+
+    const source = "# comment\nrest";
+    var index: usize = 0;
+    var in_comment = false;
+
+    while (index < source.len) {
+        if (try handleComment(allocator, source, &builder, &index, &in_comment)) {
+            continue;
+        }
+        try builder.append(allocator, source[index]);
+        index += 1;
+    }
+
+    const buffer = try builder.toOwnedSlice(allocator);
+    defer allocator.free(buffer);
+    try std.testing.expectEqualStrings("# comment\nrest", buffer);
 }
