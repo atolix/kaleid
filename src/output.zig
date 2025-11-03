@@ -104,16 +104,6 @@ pub fn printSummary(summary: *const FileSummary, file_path: []const u8, root_kin
             summary.counts.defs,
         },
     );
-
-    // if (summary.definitions.len == 0) return;
-
-    // std.debug.print("  Definitions:\n", .{});
-    // for (summary.definitions) |defn| {
-    //     std.debug.print(
-    //         "    {s} @ line {d} column {d}\n",
-    //         .{ defn.name, defn.span.start.line + 1, defn.span.start.column + 1 },
-    //     );
-    // }
 }
 
 test "summarize captures counts and definitions" {

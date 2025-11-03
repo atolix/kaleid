@@ -21,6 +21,16 @@ const rules = [_]rule_types.Rule{
     .{ .apply = block_brace_spacing.apply },
 };
 
+fn applyRule(allocator: std.mem.Allocator, current: *FormatResult, rule: rule_types.Rule) !void {
+    var result = try rule.apply(allocator, current.buffer);
+    if (result.changed) {
+        if (current.changed) allocator.free(current.buffer);
+        current.* = FormatResult{ .changed = true, .buffer = result.buffer };
+    } else {
+        result.deinit(allocator);
+    }
+}
+
 /// Applies all formatting rules to the provided source.
 pub fn applyRules(allocator: std.mem.Allocator, source: []const u8) !FormatResult {
     var current = FormatResult{ .changed = false, .buffer = @constCast(source) };
@@ -69,12 +79,3 @@ test "applyRulesToFile writes updates into the file" {
     try std.testing.expectEqualStrings("return if foo\n\nputs 'bar'\n", updated);
 }
 
-fn applyRule(allocator: std.mem.Allocator, current: *FormatResult, rule: rule_types.Rule) !void {
-    var result = try rule.apply(allocator, current.buffer);
-    if (result.changed) {
-        if (current.changed) allocator.free(current.buffer);
-        current.* = FormatResult{ .changed = true, .buffer = result.buffer };
-    } else {
-        result.deinit(allocator);
-    }
-}

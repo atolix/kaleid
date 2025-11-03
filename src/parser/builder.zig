@@ -8,6 +8,15 @@ const AstNode = types.AstNode;
 const Span = types.Span;
 const Position = types.Position;
 
+const BuildContext = struct {
+    allocator: std.mem.Allocator,
+    parser: *const c.pm_parser_t,
+    list: *std.ArrayListUnmanaged(AstNode),
+    err: ?anyerror = null,
+};
+
+const ChildPtr = ?*const c.pm_node_t;
+
 pub fn buildNode(allocator: std.mem.Allocator, parser: *const c.pm_parser_t, node: *const c.pm_node_t) !AstNode {
     var children_list = std.ArrayListUnmanaged(AstNode){};
     errdefer {
@@ -37,15 +46,6 @@ pub fn buildNode(allocator: std.mem.Allocator, parser: *const c.pm_parser_t, nod
         .children = children,
     };
 }
-
-const BuildContext = struct {
-    allocator: std.mem.Allocator,
-    parser: *const c.pm_parser_t,
-    list: *std.ArrayListUnmanaged(AstNode),
-    err: ?anyerror = null,
-};
-
-const ChildPtr = ?*const c.pm_node_t;
 
 /// Bridges Prism's child traversal into Zig, building children and recording failures.
 fn collectChildCallback(child_ptr: ChildPtr, context_ptr: ?*anyopaque) callconv(.c) bool {

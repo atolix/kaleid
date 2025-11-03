@@ -19,6 +19,25 @@ pub const Span = struct {
     end: Position,
 };
 
+pub const ParseTree = struct {
+    /// Owns a complete AST for a single Ruby source file.
+    /// Layout overview (ASCII):
+    ///   ParseTree
+    ///     |- allocator : std.mem.Allocator
+    ///     |- source    : []const u8
+    ///     \- root ----> AstNode (kind/flags/span/children...)
+    /// The tree keeps the allocator used to build every AstNode so that
+    /// `deinit` can walk the subtree and free all associated allocations.
+    allocator: std.mem.Allocator,
+    source: []const u8,
+    root: AstNode,
+
+    pub fn deinit(self: *ParseTree) void {
+        // Cleans up the entire AST by recursively deinitializing the root node.
+        self.root.deinit(self.allocator);
+    }
+};
+
 pub const AstNode = struct {
     /// Prism node converted into Zig, carrying its kind, flags, span, and children.
     ///
@@ -40,24 +59,7 @@ pub const AstNode = struct {
     }
 };
 
-pub const ParseTree = struct {
-    /// Owns a complete AST for a single Ruby source file.
-    /// Layout overview (ASCII):
-    ///   ParseTree
-    ///     |- allocator : std.mem.Allocator
-    ///     |- source    : []const u8
-    ///     \- root ----> AstNode (kind/flags/span/children...)
-    /// The tree keeps the allocator used to build every AstNode so that
-    /// `deinit` can walk the subtree and free all associated allocations.
-    allocator: std.mem.Allocator,
-    source: []const u8,
-    root: AstNode,
 
-    pub fn deinit(self: *ParseTree) void {
-        // Cleans up the entire AST by recursively deinitializing the root node.
-        self.root.deinit(self.allocator);
-    }
-};
 
 /// Returns the Prism node type name corresponding to the numeric `kind`.
 pub fn nodeKindName(kind: NodeKind) []const u8 {
