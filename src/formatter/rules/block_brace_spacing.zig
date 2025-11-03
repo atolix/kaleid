@@ -7,6 +7,12 @@ pub const Result = rule_types.RuleResult;
 const StringState = enum { none, single, double };
 const BraceKind = enum { literal, block };
 
+// Example transform:
+// values.each{|value| value.strip}
+//
+// =>
+// values.each { |value| value.strip }
+//
 /// Ensures Ruby blocks using `{ ... }` have spaces before and inside the braces.
 pub fn apply(allocator: std.mem.Allocator, source: []const u8) !Result {
     var builder = std.ArrayListUnmanaged(u8){};
